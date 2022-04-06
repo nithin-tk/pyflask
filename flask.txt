@@ -1,0 +1,260 @@
+> create a folder
+> open in vscode 
+> pip install virtualenv
+> virtualenv env in commandline 
+> env/Scripts/activate.bat
+> install requirements 
+    > pip install flask flask-sqlalchemy
+> create new file
+    >app.py
+>code inside app.py 
+
+from flask import Flask
+app = Flask(__name__)
+@app.route('/')
+def index():
+    return "how u doing"
+
+if __name__ == "__main__":
+    app.run(debug=True)
+
+
+> create two new folders for html and css
+    > static 
+    > templates
+> create a file inside templates
+    >index.html
+
+> for this change the import statement to "from flask import Flask, render_template"
+
+> change return statment to render_template("index.html")
+
+> new topic template inheritance 
+    > create a skeletal of a html code and then inherit whenever u want 
+
+    > create new file base.html
+    > write the boiler plate template
+    > write {% block head %}{% endblock %} inside head
+    > the same inside body also {% block body %}{% endblock %}
+    >come over to index.html
+    >{% extends 'base.html' %}
+    > {% block head %}
+    reference style sheets
+    {% endblock %}
+    >{% block body %}
+    write html code
+    {% endblock %}
+
+> for css 
+    > create a css folder inside static 
+    > create main.css inside css 
+    > link the folder
+    > we cant do the normal linking inside flask 
+    > for that we use the same ginger2 format
+    > inside the base.html write 
+        > <link rel="stylesheet" href = "{{ url_for('static',filename= 'css/main.cs') }}"(import url_for in app.py) 
+
+> coming back to the main file app.py 
+code:
+from flask import Flask,render_template,url_for
+from flask_sqlalchemy import SQLAlchemy 
+
+app = Flask(__name__)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///test.db'(/// is relative path //// is an absolute path)
+db = SQLAlchemy(app)
+
+class Todo(db.Model):
+    id = db.Column(db.Integer,primary_key=True)
+    content = db.Column(db.String(200),nullable=False)
+    completed = db.Column(db.Integer,default=0)
+    date_created = db.Column(db.DateTime, default=datetime.utcnow)   #we dont have to set it manually it will be set automatically
+
+    def __repr__(self):
+        return '<Task %r>' % self.id
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+
+> now go to terminal to setup database
+> just run python
+> from app import db
+
+> db.create_all()
+
+> exit()
+
+> inside index.html inside the body block 
+give 
+
+<div class="content">
+    <h1>Todo List</h1>
+
+    <table>
+        <tr>
+            <th>Task</th>
+            <th>Added</th>
+            <th>Actions</th>
+        </tr>
+
+        <tr>
+            <td></td>
+            <td></td>
+            <td>
+                <a href="">Delete</a>
+                <br>
+                <a href="">Update</a>
+
+            </td>
+        </tr>
+
+
+    </table>
+</div>
+  
+
+> now come back to app.py
+    >change @app.route('/',methods=['POST','GET'])
+    > we can now post and send data to db
+
+> come back to index
+
+    <form action="/" method="POST">
+        <input type="text" name="content" id="content">
+        <input type="submit" value="Add Task"
+    </form>
+
+>comback to app.py 
+
+change def index()
+    
+def index():
+    if request.method == 'POST':
+        pass
+    else:
+        return render_template('index.html')
+> name error request is not defined, just import it in the first like "request"
+
+>create the logic for adding a task
+
+inside if request.method == 'POST'
+
+    task_content = request.form['content']
+    new_task = Todo(content=task_content)
+
+    try:
+        db.session.add(new_task)
+        db.session.commit()
+        return redirect('/')
+    except:
+        return "There was an issue adding your task"
+inside else
+
+    tasks = Todo.query.order_by(Todo.date_created).all()
+    return render_template('index.html',tasks = tasks)
+
+
+>come over to index.html 
+
+inside the non filled area
+
+{% for task in tasks %}
+<tr>
+    <td>{{task.content}}</td>
+    <td>{{task.date_created}}</td>
+
+    td for delete and update
+</tr>
+{% endfor %}
+
+
+> for the delete 
+come to app.py 
+
+before the main
+
+@app.route('/delete/<int:id>')
+def delete(id):
+    task_to_delete = Todo.query.get_or_404(id)
+
+    try:
+        db.session.delete(task_to_delete)
+        db.session.commit()
+        return redirect('/')
+
+    except:
+        return "There was a problem deleting the task"
+
+inside index.html we can to get the id of the task
+
+come to delete in the table 
+    <a href="/delete/{{task.id}}">Delete</a>
+
+
+>now for update
+
+one more route
+
+@app.route('/update/<int:id>',methods=['GET','POST'])
+def update(id):
+    return ""
+
+come over to index.html
+
+in there put the same as above just change delete to update
+
+inside templates create a new file update.html
+
+same as index.html 
+copy paste delete the whole table and leave just the form
+change form action to "/update/{{task.id}}"
+
+in the update function
+
+    if request.method=="POST":
+        pass
+    else:
+        return render_template('update.html')
+
+
+now error because i am not returning anything 
+
+for that create query 
+
+task = Todo.query.get_or_404(id)
+
+change render_template('update.html',task=task)
+
+now to autopopulate
+
+go to update.html 
+forms
+
+content input will have value="{{task.content}}"
+
+
+go to app.py 
+need update logic
+task = Todo.query.get_or_404(id)
+if request.method == 'POST':
+    task.content = request.form['content']
+
+    try:
+        db.session.commit()
+
+        return redirect('/')
+
+    except:
+        return "there was an issue updating ur task"
+
+
+to show there r no tasks and stuff 
+
+{% if tasks|length<1 %}
+
+<h4 > there are no tasks. create one below!.</h4>
+
+{% else %}
+
+
+{% endif %} before the form
